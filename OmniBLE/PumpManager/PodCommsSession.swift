@@ -194,6 +194,16 @@ public class PodCommsSession {
         self.delegate = delegate
         self.transport.delegate = self
     }
+    
+    /// verifies in podState if there's a temp basal
+    public func tempBasalRunning() -> Bool {
+        
+        if let unfinalizedTempBasal = podState.unfinalizedTempBasal,
+                    let finishTime = unfinalizedTempBasal.finishTime, finishTime > Date() {
+            return true
+        }
+        return false
+    }
 
     // Handles updating PodState on first pod fault seen
     private func handlePodFault(fault: DetailedStatus) {

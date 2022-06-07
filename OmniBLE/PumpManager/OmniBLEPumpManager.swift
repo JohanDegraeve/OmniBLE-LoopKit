@@ -80,6 +80,11 @@ extension OmniBLEPumpManagerError: LocalizedError {
 
 public class OmniBLEPumpManager: DeviceManager {
 
+    /// will be used to determine if it's allowed to cancel a basal or not.
+    /// In temp basal is not started automatic, then it's started by user, then it's not allowed to define an automatic temp basal, also not to automatically cancel an existing tempbasal
+    /// this will only work as long as the app is not stopped and restarted.
+    private var tempBasalStartedAutomatic = true
+
     public let managerIdentifier: String = "Omnipod-Dash" // use a single token to make parsing log files easier
 
     public let localizedTitle = LocalizedString("Omnipod DASH", comment: "Generic title of the OmniBLE pump manager")
@@ -1637,7 +1642,6 @@ extension OmniBLEPumpManager: PumpManager {
         let rate = roundToSupportedBasalRate(unitsPerHour: unitsPerHour)
 
         self.podComms.runSession(withName: "Enact Temp Basal") { (result) in
-            self.log.info("Enact temp basal %.03fU/hr for %ds", rate, Int(duration))
             let session: PodCommsSession
             switch result {
             case .success(let s):
@@ -1646,6 +1650,17 @@ extension OmniBLEPumpManager: PumpManager {
                 completion(.communication(error))
                 return
             }
+
+            // if a temp basal is running, and it's one defined by the user and this new temp basal is being enabled automatic, then don't do it
+            if session.tempBasalRunning() && !self.tempBasalStartedAutomatic && automatic  {
+                self.log.info("Not enacting temp basal because a user defined temp basal is running")
+                completion(nil)
+                return
+            }
+            
+            self.log.info("Enact temp basal %.03fU/hr for %ds", rate, Int(duration))
+
+            self.tempBasalStartedAutomatic = automatic
 
             do {
                 if case .some(.suspended) = self.state.podState?.suspendState {
@@ -1656,6 +1671,8 @@ extension OmniBLEPumpManager: PumpManager {
                 // A resume scheduled basal delivery request is denoted by a 0 duration that cancels any existing temp basal.
                 let resumingScheduledBasal = duration < .ulpOfOne
 
+                // if there's an ongoing tempBasal > 0.0 then this is a user defined temp basal, don't cancel it
+                
                 // If a bolus is not finished, fail if not resuming the scheduled basal
                 guard self.state.podState?.unfinalizedBolus?.isFinished() != false || resumingScheduledBasal else {
                     self.log.info("Not enacting temp basal because podState indicates unfinalized bolus in progress.")
