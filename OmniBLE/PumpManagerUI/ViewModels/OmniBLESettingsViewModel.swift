@@ -261,7 +261,7 @@ class OmniBLESettingsViewModel: ObservableObject {
         self.didFinish?()
     }
     
-    func stopUsingOmnipodTapped() {
+    func stopUsingOmnipodDashTapped() {
         self.pumpManager.notifyDelegateOfDeactivation {
             DispatchQueue.main.async {
                 self.didFinish?()
@@ -366,7 +366,7 @@ class OmniBLESettingsViewModel: ObservableObject {
             }
         case .active:
             if isPodDataStale {
-                return LocalizedString("No Data", comment: "Error message for reservoir view during general pod fault")
+                return LocalizedString("Signal Loss", comment: "Error message for reservoir view during general pod fault")
             } else {
                 return nil
             }
@@ -557,7 +557,7 @@ extension OmniBLEPumpManager {
             fault: podState.fault?.faultEventCode,
             activatedAt: podState.activatedAt,
             activeTime: podState.activeTime,
-            pdmRef: podState.pdmRef
+            pdmRef: podState.fault?.pdmRef
         )
     }
 
